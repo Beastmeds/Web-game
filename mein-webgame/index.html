@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Krasses Webgame</title>
+<style>
+body { margin:0; font-family:'Segoe UI',sans-serif; overflow:hidden; background:#111; color:white; }
+#loginScreen,#menu,#skins,#settings,#adminDashboard,#gameUI {position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:15px;}
+h1,h2,h3{text-align:center;text-shadow:0 0 10px red;}
+button{padding:10px 25px; border:none; border-radius:10px; font-size:1.1rem; cursor:pointer; background:linear-gradient(45deg,#ff3131,#ff7300); color:white; transition:0.3s;}
+button:hover{transform:scale(1.1);}
+input,select{padding:8px;border-radius:6px;border:none;margin:5px;}
+canvas{display:none;background:#111;}
+.skin-option{width:80px;height:80px;margin:10px;border:2px solid transparent;border-radius:10px;display:inline-block;cursor:pointer;background-size:cover;}
+.skin-option:hover{border:2px solid red; transform:scale(1.1);}
+</style>
+</head>
+<body>
+
+<!-- AUDIO -->
+<audio id="bgMusic" src="audio/music.mp3" loop></audio>
+<audio id="shootSound" src="audio/shoot.mp3"></audio>
+<audio id="hitSound" src="audio/hit.mp3"></audio>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+<h1>Login/Register</h1>
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Passwort">
+<button id="loginBtn">Login</button>
+<button id="registerBtn">Registrieren</button>
+</div>
+
+<!-- MENU -->
+<div id="menu" style="display:none;">
+<h1>🔥 KRASSES WEBGAME 🔥</h1>
+<button id="skinBtn">🎨 Skin auswählen</button>
+<button id="startDodgeBtn">🧱 Dodge Modus</button>
+<button id="startShooterBtn">🔫 Ego Shooter</button>
+<button id="settingsBtn">⚙️ Einstellungen</button>
+</div>
+
+<!-- SKINS -->
+<div id="skins" style="display:none;">
+<h2>Wähle Skin</h2>
+<div id="skinList"></div>
+<button id="closeSkinBtn">Zurück</button>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" style="display:none;">
+<h2>Einstellungen</h2>
+<label>Hintergrundfarbe: <input type="color" id="bgColorPicker" value="#111111"></label>
+<label>Musik an/aus: <input type="checkbox" id="musicToggle" checked></label>
+<label>Schwierigkeit:
+<select id="difficultySelect">
+<option value="easy">Einfach</option>
+<option value="medium">Mittel</option>
+<option value="hard">Schwer</option>
+</select></label>
+<button id="closeSettingsBtn">Zurück</button>
+</div>
+
+<!-- ADMIN -->
+<div id="adminDashboard" style="display:none;">
+<h2>Admin Dashboard</h2>
+<h3>Spieler Logs / Bans</h3>
+<div id="playerLogs" style="max-height:200px;overflow:auto;width:80%;background:#222;padding:10px;border-radius:8px;"></div>
+<input type="text" id="banEmail" placeholder="Email bannen">
+<button id="banBtn">Spieler bannen</button>
+<h3>Nachrichten</h3>
+<input type="text" id="discordMsg" placeholder="Discord Nachricht">
+<button id="sendDiscord">Senden</button>
+<input type="text" id="waMsg" placeholder="WhatsApp Nachricht">
+<input type="text" id="waTo" placeholder="Telefonnummer">
+<button id="sendWA">Senden</button>
+<button id="backMenuBtn">Zurück zum Menü</button>
+</div>
+
+<!-- GAME -->
+<canvas id="game" width="900" height="600"></canvas>
+<div id="gameUI" style="display:none; flex-direction:column; align-items:center; margin-top:10px;">
+<h3 id="scoreText">Score: 0</h3>
+</div>
+
+<script>
+// Skins
+let selectedSkin = 'skin1';
+const skins = {
+  skin1:'images/skin1.png',
+  skin2:'images/skin2.png',
+  skin3:'images/skin3.png',
+  skin4:'images/skin4.png'
+};
+
+// Admin Account
+const adminEmail = 'admin@game.com';
+const adminPassword = 'admin123';
+let currentUser = null;
+let bannedUsers = [];
+
+// Audio
+const bgMusic = document.getElementById('bgMusic');
+const shootSound = document.getElementById('shootSound');
+const hitSound = document.getElementById('hitSound');
+
+// LOGIN
+document.getElementById('loginBtn').onclick = ()=>{
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  if(bannedUsers.includes(email)) return alert("Du bist gebannt!");
+  if(email===adminEmail && password===adminPassword){
+    currentUser={email,role:'admin'};
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('adminDashboard').style.display='flex';
+    return;
+  } else {
+    currentUser={email,role:'user'};
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('menu').style.display='flex';
+  }
+};
+document.getElementById('registerBtn').onclick = ()=>{ alert('Registrieren simuliert!'); };
+
+// SKINS
+document.getElementById('skinBtn').onclick = ()=>{
+  document.getElementById('menu').style.display='none';
+  document.getElementById('skins').style.display='flex';
+  const list=document.getElementById('skinList'); list.innerHTML='';
+  for(const[name,img] of Object.entries(skins)){
+    const box=document.createElement('div');
+    box.className='skin-option';
+    box.style.backgroundImage=`url(${img})`;
+    box.onclick = ()=>{ selectedSkin=name; alert('Skin gewählt!'); };
+    list.appendChild(box);
+  }
+};
+document.getElementById('closeSkinBtn').onclick = ()=>{
+  document.getElementById('skins').style.display='none';
+  document.getElementById('menu').style.display='flex';
+};
+
+// SETTINGS
+document.getElementById('settingsBtn').onclick = ()=>{
+  document.getElementById('menu').style.display='none';
+  document.getElementById('settings').style.display='flex';
+};
+document.getElementById('closeSettingsBtn').onclick = ()=>{
+  document.getElementById('settings').style.display='none';
+  document.getElementById('menu').style.display='flex';
+};
+document.getElementById('bgColorPicker').onchange = (e)=>document.getElementById('game').style.background=e.target.value;
+document.getElementById('musicToggle').onchange = (e)=>{ if(e.target.checked) bgMusic.play(); else bgMusic.pause(); };
+
+// ADMIN DASHBOARD
+document.getElementById('backMenuBtn').onclick = ()=>{
+  document.getElementById('adminDashboard').style.display='none';
+  document.getElementById('menu').style.display='flex';
+};
+document.getElementById('banBtn').onclick = ()=>{
+  const email = document.getElementById('banEmail').value;
+  if(email) { bannedUsers.push(email); alert(email+" gebannt!"); document.getElementById('playerLogs').innerText+=email+" gebannt\n"; }
+};
+document.getElementById('sendDiscord').onclick = ()=>alert("Discord Nachricht gesendet: "+document.getElementById('discordMsg').value);
+document.getElementById('sendWA').onclick = ()=>alert("WhatsApp Nachricht gesendet: "+document.getElementById('waMsg').value);
+
+// GAME LOGIC
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const playerSize=50;
+let playerX=canvas.width/2,playerY=canvas.height-60;
+let bullets=[], enemies=[], score=0;
+let mouseX=0, mouseY=0;
+
+function startDodge(){
+  let obstacles=[]; score=0;
+  document.getElementById('menu').style.display='none';
+  canvas.style.display='block';
+  document.getElementById('gameUI').style.display='flex';
+  window.onkeydown=(e)=>{ if(e.key==='ArrowLeft') playerX-=10; if(e.key==='ArrowRight') playerX+=10; };
+  function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const playerImg=new Image(); playerImg.src=skins[selectedSkin];
+    ctx.drawImage(playerImg,playerX,playerY,playerSize,playerSize);
+    obstacles.forEach((ob,i)=>{
+      ob.y+=3;
+      ctx.fillStyle='red';
+      ctx.fillRect(ob.x,ob.y,ob.width,ob.height);
+      if(playerX<ob.x+ob.width && playerX+playerSize>ob.x && playerY<ob.y+ob.height && playerY+playerSize>ob.y){
+        alert('Game Over! Score: '+score); obstacles=[]; score=0;
+      }
+    });
+    if(Math.random()<0.02) obstacles.push({x:Math.random()*(canvas.width-50),y:-20,width:50,height:20});
+    score++; document.getElementById('scoreText').innerText='Score: '+score;
+    requestAnimationFrame(update);
+  }
+  update();
+}
+
+function startShooter(){
+  bullets=[]; enemies=[]; score=0;
+  document.getElementById('menu').style.display='none';
+  canvas.style.display='block';
+  document.getElementById('gameUI').style.display='flex';
+  let enemySpeed=2;
+  window.onkeydown=(e)=>{ if(e.key==='ArrowLeft') playerX-=10; if(e.key==='ArrowRight') playerX+=10; };
+  canvas.onmousemove=(e)=>{ mouseX=e.offsetX; mouseY=e.offsetY; };
+  canvas.onclick=(e)=>{ bullets.push({x:playerX+playerSize/2,y:playerY,targetX:mouseX,targetY:mouseY,speed:7}); shootSound.play(); };
+
+  function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const playerImg=new Image(); playerImg.src=skins[selectedSkin];
+    ctx.drawImage(playerImg,playerX,playerY,playerSize,playerSize);
+
+    bullets.forEach((b,i)=>{
+      let dx=b.targetX-b.x,dy=b.targetY-b.y,dist=Math.sqrt(dx*dx+dy*dy);
+      b.x+=dx/dist*b.speed;b.y+=dy/dist*b.speed;
+      ctx.fillStyle='white'; ctx.fillRect(b.x-5,b.y-5,10,10);
+    });
+
+    enemies.forEach((e,j)=>{
+      e.y+=enemySpeed;
+      ctx.fillStyle='green'; ctx.fillRect(e.x,e.y,40,40);
+      bullets.forEach((b,k)=>{
+        if(b.x>e.x && b.x<e.x+40 && b.y>e.y && b.y<e.y+40){
+          bullets.splice(k,1); hitSound.play();
+          enemies.splice(j,1); score+=10;
+        }
+      });
+      if(e.y>canvas.height) enemies.splice(j,1);
+    });
+
+    if(Math.random()<0.02) enemies.push({x:Math.random()*(canvas.width-40),y:-30});
+    document.getElementById('scoreText').innerText='Score: '+score;
+    requestAnimationFrame(update);
+  }
+  update();
+}
+
+document.getElementById('startDodgeBtn').onclick=startDodge;
+document.getElementById('startShooterBtn').onclick=startShooter;
+</script>
+</body>
+</html>
